@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Matrix</title>
+
+    <style>
+      html {
+        background-color: #000;
+        overflow: hidden;
+      }
+
+      body {
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+
+    <script>
+      const FONT_SIZE = 20;
+      const FADE_FACTOR = 0.95;
+      const MIN_OPACITY = 0.1;
+      const FALL_SPEED = 2;
+      const DROP_END_PROB = 0.9;
+      const DROP_PER_COL = 2;
+
+      /** @type {HTMLCanvasElement} */
+      const canvas = document.getElementById("canvas");
+
+      const dpr = window.devicePixelRatio || 1;
+
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+
+      canvas.style.width = window.innerWidth + "px";
+      canvas.style.height = window.innerHeight + "px";
+
+      const ctx = canvas.getContext("2d");
+      ctx.scale(dpr, dpr);
+
+      const colCount = Math.floor(window.innerWidth / FONT_SIZE);
+      const rowCount = Math.floor(window.innerHeight / FONT_SIZE);
+
+      ctx.font = `${FONT_SIZE}px monospace`;
+      ctx.shadowBlur = 3;
+
+      const chars = "ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろゎわゐゑをんゔ".split(
+        ""
+      );
+      const randomChar = () => {
+        const index = Math.floor(Math.random() * chars.length);
+        return chars[index];
+      };
+
+      const grid = Array.from(Array(rowCount)).map((_) =>
+        Array.from(Array(colCount)).map((_) => ({
+          char: randomChar(),
+          opacity: MIN_OPACITY,
+        }))
+      );
+
+      const initDroplet = (col, row) => {
+        const interval =
+          Math.floor(Math.floor(Math.random() * 500) + 200) / FALL_SPEED;
+
+        col = col ?? Math.floor(Math.random() * colCount);
+        row = row ?? Math.floor(Math.random() * rowCount);
+
+        const update = () => {
+          row++;
+
+          // Only
+          if (row >= 0 && row < rowCount) {
+            grid[row][col] = {
+              char: randomChar(),
+              opacity: 1,
+            };
+          }
+
+          // End droplet based on probability
+          const canContinue = Math.random() < DROP_END_PROB;
+
+          // Schedule next update for this droplet
+          // Or initialise a new droplet for this column
+          if (row < rowCount && canContinue) {
+            setTimeout(update, interval);
+          } else {
+            initDroplet(col);
+          }
+        };
+
+        setTimeout(update, interval);
+      };
+
+      for (let col = 0; col < colCount; col++) {
+        Array.from(Array(DROP_PER_COL)).forEach((_) => initDroplet(col));
+      }
+
+      let lastFrame = Date.now();
+
+      function draw() {
+        const delta = (Date.now() - lastFrame) / 1000;
+        lastFrame = Date.now();
+
+        // Apply black background
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        grid.forEach((cells, row) => {
+          cells.forEach((cell, col) => {
+            const x = col * FONT_SIZE;
+            const y = row * FONT_SIZE;
+
+            const h = cell.opacity * 50 + 0;
+            const s = 100;
+            const l = (row * 50) / rowCount + cell.opacity * 40;
+            const a = Math.max(MIN_OPACITY, cell.opacity);
+
+            const color = `hsla(${h}, ${s}%, ${l}%, ${a})`;
+
+            ctx.fillStyle = color;
+            ctx.shadowColor = color;
+            ctx.fillText(cell.char, x, y);
+
+            // Slowly fade each cell over time
+            const opacity =
+              cell.opacity * Math.pow(Math.E, -delta * FADE_FACTOR);
+
+            grid[row][col] = {
+              ...cell,
+              opacity,
+            };
+          });
+        });
+
+        requestAnimationFrame(draw);
+      }
+
+      requestAnimationFrame(draw);
+    </script>
+  </body>
+</html>
